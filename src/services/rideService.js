@@ -6,6 +6,15 @@ const logger = require('../utils/logger');
 
 const LOCK_TTL = 30;
 
+const getIO = () => {
+  try {
+    const app = require('../app');
+    return app.get('io');
+  } catch (err) {
+    return null;
+  }
+};
+
 const acquireLock = async (driverId, rideId) => {
   const redis = getRedisClient();
   const result = await redis.set(
@@ -96,6 +105,16 @@ const tryMatchDriver = async (ride) => {
     ride.transitionTo('MATCHED');
     await ride.save();
 
+    const io = getIO();
+    if (io) {
+      io.to(`ride:${ride._id}`).emit('ride:status_changed', {
+        rideId: ride._id,
+        status: 'MATCHED',
+        driverId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     logger.info(`Ride ${ride._id} matched with driver ${driverId}`);
     return driverId;
   }
@@ -129,6 +148,16 @@ const respondToRide = async (driverId, rideId, accept) => {
     await ride.save();
     await releaseLock(driverId);
 
+    const io = getIO();
+    if (io) {
+      io.to(`ride:${rideId}`).emit('ride:status_changed', {
+        rideId,
+        status: 'ACCEPTED',
+        driverId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     logger.info(`Driver ${driverId} accepted ride ${rideId}`);
     return ride;
   }
@@ -148,6 +177,15 @@ const respondToRide = async (driverId, rideId, accept) => {
     ride.cancelledBy = 'rider';
     ride.cancelReason = 'No driver accepted the ride.';
     await ride.save();
+
+    const io = getIO();
+    if (io) {
+      io.to(`ride:${rideId}`).emit('ride:cancelled', {
+        rideId,
+        reason: 'No driver accepted the ride.',
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const error = new Error('No more drivers available.');
     error.statusCode = 404;
@@ -184,6 +222,15 @@ const updateRideStatus = async (driverId, rideId, newStatus) => {
 
   await ride.save();
 
+  const io = getIO();
+  if (io) {
+    io.to(`ride:${rideId}`).emit('ride:status_changed', {
+      rideId,
+      status: newStatus,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   logger.info(`Ride ${rideId} status updated to ${newStatus}`);
   return ride;
 };
@@ -213,6 +260,16 @@ const cancelRide = async (userId, rideId, role, reason) => {
 
   if (ride.driver) {
     await releaseLock(ride.driver.toString());
+  }
+
+  const io = getIO();
+  if (io) {
+    io.to(`ride:${rideId}`).emit('ride:cancelled', {
+      rideId,
+      cancelledBy: role,
+      reason: reason || 'No reason provided.',
+      timestamp: new Date().toISOString(),
+    });
   }
 
   logger.info(`Ride ${rideId} cancelled by ${role}`);
