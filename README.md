@@ -171,5 +171,5 @@ API Docs
 
 http://localhost:3000/api-docs
 
-🖥️ API	Render	rydesync-yoz8.onrender.com
-📖 Docs	Swagger	rydesync-yoz8.onrender.com/api-docs
+🖥️ API	Render	https://rydesync-yoz8.onrender.com/api-docs
+📖 Docs	Swagger	https://rydesync-yoz8.onrender.com/api-docs
