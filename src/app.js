@@ -43,7 +43,7 @@ app.get('/health', (req, res) => {
 
 // ── API Routes ────────────────────────────────────────────────────────────────
 // We will uncomment these one by one as we build each phase
-// app.use('/api/v1/auth', require('./routes/authRoutes'));      ← Phase 2
+app.use('/api/v1/auth', require('./routes/authRoutes'));
 // app.use('/api/v1/driver', require('./routes/driverRoutes')); ← Phase 3
 // app.use('/api/v1/rides', require('./routes/rideRoutes'));     ← Phase 4
 
