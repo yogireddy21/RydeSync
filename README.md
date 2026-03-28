@@ -41,7 +41,7 @@ Node.js · MongoDB · Redis · WebSockets · Bull Queues · JWT/RBAC · Geospati
 ### Install
 
 ```bash
-git clone https://github.com/yogireddy21/ridesync.git
+git clone https://github.com/yogireddy21/RydeSync
 cd ridesync
 npm install
 cp .env.example .env
