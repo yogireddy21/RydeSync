@@ -48,6 +48,9 @@ app.use('/api/v1/driver', require('./routes/driverRoutes'));
 app.use('/api/v1/rides', require('./routes/rideRoutes'));
 app.use('/api/v1/surge', require('./routes/surgeRoutes'));
 app.use('/api/v1/wallet', require('./routes/walletRoutes'));
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // ── 404 handler ───────────────────────────────────────────────────────────────
 // Any request that didn't match a route above falls through to here
 // Without this: Express sends back ugly HTML "Cannot GET /xyz"
