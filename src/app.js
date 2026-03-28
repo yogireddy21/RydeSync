@@ -46,6 +46,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/driver', require('./routes/driverRoutes'));
 app.use('/api/v1/rides', require('./routes/rideRoutes'));
+app.use('/api/v1/surge', require('./routes/surgeRoutes'));
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 // Any request that didn't match a route above falls through to here

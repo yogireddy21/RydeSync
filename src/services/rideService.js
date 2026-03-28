@@ -3,7 +3,7 @@ const Ride = require('../models/Ride');
 const User = require('../models/User');
 const { getNearbyDrivers } = require('./driverService');
 const logger = require('../utils/logger');
-
+const { getSurgeMultiplier, incrementDemand, decrementDemand } = require('./surgeService');
 const LOCK_TTL = 30;
 
 const getIO = () => {
@@ -57,6 +57,13 @@ const requestRide = async (riderId, pickupCoords, destinationCoords, pickupAddre
     throw error;
   }
 
+   const surgeMultiplier = await getSurgeMultiplier(pickupCoords[0], pickupCoords[1]);
+  await incrementDemand(pickupCoords[0], pickupCoords[1]);
+
+  const BASE_FARE = 5000;
+  const PER_KM_RATE = 1200;
+  const PER_MIN_RATE = 200;
+
   const ride = await Ride.create({
     rider: riderId,
     pickup: {
@@ -71,6 +78,12 @@ const requestRide = async (riderId, pickupCoords, destinationCoords, pickupAddre
     },
     status: 'REQUESTED',
     matchedDrivers: nearbyDrivers.map((d) => d.driverId),
+    fare: {
+      baseFare: BASE_FARE,
+      perKmRate: PER_KM_RATE,
+      perMinRate: PER_MIN_RATE,
+      surgeMultiplier,
+    },
   });
 
   const matchedDriver = await tryMatchDriver(ride);
@@ -222,6 +235,10 @@ const updateRideStatus = async (driverId, rideId, newStatus) => {
 
   await ride.save();
 
+    if (newStatus === 'COMPLETED' && ride.pickup && ride.pickup.coordinates) {
+    await decrementDemand(ride.pickup.coordinates[0], ride.pickup.coordinates[1]);
+  }
+
   const io = getIO();
   if (io) {
     io.to(`ride:${rideId}`).emit('ride:status_changed', {
@@ -257,7 +274,9 @@ const cancelRide = async (userId, rideId, role, reason) => {
   ride.cancelledBy = role;
   ride.cancelReason = reason || 'No reason provided.';
   await ride.save();
-
+  if (ride.pickup && ride.pickup.coordinates) {
+    await decrementDemand(ride.pickup.coordinates[0], ride.pickup.coordinates[1]);
+  }
   if (ride.driver) {
     await releaseLock(ride.driver.toString());
   }

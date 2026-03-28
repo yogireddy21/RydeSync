@@ -6,6 +6,7 @@ const { persistLocationsToMongo } = require('./src/services/driverService');
 const setupSocket = require('./src/sockets/socketHandler');
 const logger = require('./src/utils/logger');
 const env = require('./src/config/env');
+const { computeSurgeForAllZones } = require('./src/services/surgeService');
 const { Server } = require('socket.io');
 
 const startServer = async () => {
@@ -33,7 +34,13 @@ const startServer = async () => {
       logger.error(`Location persistence failed: ${err.message}`);
     }
   }, 30000);
-
+    setInterval(async () => {
+    try {
+      await computeSurgeForAllZones();
+    } catch (err) {
+      logger.error(`Surge computation failed: ${err.message}`);
+    }
+  }, 10000);
   server.listen(env.PORT, () => {
     logger.info(`RideSync server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
   });
