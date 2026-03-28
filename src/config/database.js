@@ -15,11 +15,18 @@ const connectDatabase = async () => {
     }
 
     try {
-        redisClient = new Redis({
-            host: env.REDIS_HOST,
-            port: env.REDIS_PORT,
-            password: env.REDIS_PASSWORD || undefined,
-        });
+        if (env.REDIS_URL) {
+            redisClient = new Redis(env.REDIS_URL, {
+                tls: env.REDIS_URL.includes('upstash') ? { rejectUnauthorized: false } : undefined,
+                maxRetriesPerRequest: null,
+            });
+        } else {
+            redisClient = new Redis({
+                host: env.REDIS_HOST,
+                port: env.REDIS_PORT,
+                password: env.REDIS_PASSWORD || undefined,
+            });
+        }
 
         redisClient.on('connect', () => {
             logger.info('Redis connected successfully');
