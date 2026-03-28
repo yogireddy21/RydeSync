@@ -45,7 +45,7 @@ app.get('/health', (req, res) => {
 // We will uncomment these one by one as we build each phase
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/driver', require('./routes/driverRoutes'));
-// app.use('/api/v1/rides', require('./routes/rideRoutes'));     ← Phase 4
+app.use('/api/v1/rides', require('./routes/rideRoutes'));
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 // Any request that didn't match a route above falls through to here
