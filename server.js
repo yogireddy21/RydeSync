@@ -4,6 +4,7 @@ const app = require('./src/app');
 const { connectDatabase } = require('./src/config/database');
 const logger = require('./src/utils/logger');
 const env = require('./src/config/env');
+const { persistLocationsToMongo } = require('./src/services/driverService');
 
 // ── Create HTTP server ────────────────────────────────────────────────────────
 // We wrap Express in a raw Node HTTP server instead of app.listen()
@@ -69,6 +70,15 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
+
+// Persist driver locations from Redis to MongoDB every 30 seconds
+setInterval(async () => {
+  try {
+    await persistLocationsToMongo();
+  } catch (err) {
+    logger.error(`Location persistence failed: ${err.message}`);
+  }
+}, 30000);
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 // SOLID SRP: this function has one job — start the server in the correct order
 // Connect DB first → if it fails, don't start → no broken requests ever served
