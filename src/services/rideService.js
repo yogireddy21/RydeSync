@@ -4,6 +4,9 @@ const User = require('../models/User');
 const { getNearbyDrivers } = require('./driverService');
 const logger = require('../utils/logger');
 const { getSurgeMultiplier, incrementDemand, decrementDemand } = require('./surgeService');
+const { paymentQueue, notificationQueue } = require('../jobs/queues');
+const { calculateFare } = require('./fareService');
+
 const LOCK_TTL = 30;
 
 const getIO = () => {
@@ -57,7 +60,7 @@ const requestRide = async (riderId, pickupCoords, destinationCoords, pickupAddre
     throw error;
   }
 
-   const surgeMultiplier = await getSurgeMultiplier(pickupCoords[0], pickupCoords[1]);
+  const surgeMultiplier = await getSurgeMultiplier(pickupCoords[0], pickupCoords[1]);
   await incrementDemand(pickupCoords[0], pickupCoords[1]);
 
   const BASE_FARE = 5000;
@@ -171,6 +174,13 @@ const respondToRide = async (driverId, rideId, accept) => {
       });
     }
 
+    await notificationQueue.add({
+      userId: ride.rider.toString(),
+      rideId,
+      type: 'RIDE_ACCEPTED',
+      message: 'Your driver is on the way!',
+    });
+
     logger.info(`Driver ${driverId} accepted ride ${rideId}`);
     return ride;
   }
@@ -235,8 +245,45 @@ const updateRideStatus = async (driverId, rideId, newStatus) => {
 
   await ride.save();
 
-    if (newStatus === 'COMPLETED' && ride.pickup && ride.pickup.coordinates) {
+  if (newStatus === 'COMPLETED' && ride.pickup && ride.pickup.coordinates) {
     await decrementDemand(ride.pickup.coordinates[0], ride.pickup.coordinates[1]);
+  }
+
+  if (newStatus === 'DRIVER_ARRIVED') {
+    await notificationQueue.add({
+      userId: ride.rider.toString(),
+      rideId,
+      type: 'DRIVER_ARRIVING',
+      message: 'Your driver has arrived at the pickup location!',
+    });
+  }
+
+  if (newStatus === 'COMPLETED') {
+    await calculateFare(rideId);
+
+    const updatedRide = await Ride.findById(rideId);
+
+    await paymentQueue.add(
+      { rideId },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+      }
+    );
+
+    await notificationQueue.add({
+      userId: ride.rider.toString(),
+      rideId,
+      type: 'RIDE_COMPLETED',
+      message: `Your ride is complete! Fare: ₹${(updatedRide.fare.totalFare / 100).toFixed(2)}`,
+    });
+
+    await notificationQueue.add({
+      userId: ride.driver.toString(),
+      rideId,
+      type: 'PAYMENT_RECEIVED',
+      message: `Ride completed! You earned ₹${((updatedRide.fare.totalFare * 0.8) / 100).toFixed(2)}`,
+    });
   }
 
   const io = getIO();
@@ -274,9 +321,11 @@ const cancelRide = async (userId, rideId, role, reason) => {
   ride.cancelledBy = role;
   ride.cancelReason = reason || 'No reason provided.';
   await ride.save();
+
   if (ride.pickup && ride.pickup.coordinates) {
     await decrementDemand(ride.pickup.coordinates[0], ride.pickup.coordinates[1]);
   }
+
   if (ride.driver) {
     await releaseLock(ride.driver.toString());
   }

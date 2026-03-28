@@ -8,6 +8,8 @@ const logger = require('./src/utils/logger');
 const env = require('./src/config/env');
 const { computeSurgeForAllZones } = require('./src/services/surgeService');
 const { Server } = require('socket.io');
+require('./src/jobs/paymentWorker');
+require('./src/jobs/notificationWorker');
 
 const startServer = async () => {
   await connectDatabase();
