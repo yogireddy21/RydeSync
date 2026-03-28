@@ -1,7 +1,7 @@
 require('dotenv').config();
 const http = require('http');
 const app = require('./src/app');
-const connectDatabase = require('./src/config/database');
+const { connectDatabase } = require('./src/config/database');
 const logger = require('./src/utils/logger');
 const env = require('./src/config/env');
 
